@@ -84,7 +84,7 @@ end
 
 function encode(io::IO, v::Unsigned)
     if v < 248
-        Base.write(io, v)
+        Base.write(io, convert(UInt8, v))
     else
         tier = value2tier(v)
         Base.write(io, tier2tag(tier))
