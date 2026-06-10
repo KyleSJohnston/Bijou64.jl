@@ -40,7 +40,8 @@ println()
 println("Benchmarking Bijou64")
 println()
 
-io = IOContext(stdout, :histmin => 10e3, :histmax => 500e3, :logbins => true)
+# Range chosen to after viewing https://www.inkandswitch.com/tangents/bijou64/
+io = IOContext(stdout, :histmin => 10e3, :histmax => 100e3, :logbins => true)
 
 println("tiny -- Bijou64")
 b = @benchmark Bijou64.write($(make_buffer()), $(tiny_values()))
