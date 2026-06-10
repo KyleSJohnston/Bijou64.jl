@@ -68,7 +68,7 @@ function value2tier(v::Unsigned)::UInt8
 end
 
 
-function read(io::IO, ::Type{T}) where {T <: Unsigned}
+function decode(io::IO, ::Type{T}) where {T <: Unsigned}
     tagbyte = try
         Base.read(io, UInt8)
     catch e
@@ -102,16 +102,16 @@ function read(io::IO, ::Type{T}) where {T <: Unsigned}
     end
 end
 
-function read(io::IO, ::Type{Vector{T}}) where {T <: Unsigned}
+function decode(io::IO, ::Type{Vector{T}}) where {T <: Unsigned}
     results = T[]
     while !eof(io)
-        push!(results, read(io, T))
+        push!(results, decode(io, T))
     end
     return results
 end
 
 
-function write(io::IO, v::Unsigned)
+function encode(io::IO, v::Unsigned)
     if v < 248
         Base.write(io, convert(UInt8, v))
     else
@@ -122,9 +122,9 @@ function write(io::IO, v::Unsigned)
     end
 end
 
-function write(io::IO, values::Vector{T}) where {T<:Unsigned}
+function encode(io::IO, values::Vector{T}) where {T<:Unsigned}
     for v in values
-        write(io, v)
+        encode(io, v)
     end
 end
 
