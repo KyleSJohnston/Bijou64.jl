@@ -4,19 +4,8 @@ using Test
 @testset "Tests from Specification" begin
 
     # https://github.com/inkandswitch/bijou/blob/main/bijou64/SPEC.md#worked-example
-    let io = IOBuffer()
-        Bijou64.encode(io, UInt64(67_000))
-        seekstart(io)
-        bytes = take!(io)
-        @test bytes == [0xFA, 0x00, 0x03, 0xC0]
-    end
-
-    let io = IOBuffer()
-        Bijou64.encode(io, UInt64(67_000))
-        seekstart(io)
-        @test Bijou64.decode(io, UInt64) == 67_000
-        @test position(io) == 4
-    end
+    @test Bijou64.encode(UInt64(67_000)) == [0xFA, 0x00, 0x03, 0xC0]
+    @test Bijou64.decode(UInt64, [0xFA, 0x00, 0x03, 0xC0]) == [67_000]
 
     # https://github.com/inkandswitch/bijou/blob/main/bijou64/SPEC.md#test-vectors
 
@@ -63,31 +52,14 @@ using Test
     ]
 
     for (v, b) in zip(values, bytes)
-        let io = IOBuffer()
-            Bijou64.encode(io, v)
-            seekstart(io)
-            result = take!(io)
-            @test result == b
-        end
-        let io = IOBuffer()
-            Bijou64.encode(io, v)
-            seekstart(io)
-            @test Bijou64.decode(io, UInt64) == v
-        end
+        @test Bijou64.encode(v) == b
+        @test Bijou64.decode(UInt64, b) == [v]
     end
 
     # https://github.com/inkandswitch/bijou/blob/main/bijou64/SPEC.md#error-conditions
 
-    let io = IOBuffer()
-        @test_throws BufferTooShort Bijou64.decode(io, UInt64)
-    end
-
-    let io = IOBuffer(UInt8[0xF9, 0x00])
-        @test_throws BufferTooShort Bijou64.decode(io, UInt64)
-    end
-
-    let io = IOBuffer(UInt8[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
-        @test_throws OverflowError Bijou64.decode(io, UInt64)
-    end
+    @test_throws BufferTooShort Bijou64.decode(UInt64, UInt8[])
+    @test_throws BufferTooShort Bijou64.decode(UInt64, UInt8[0xF9, 0x00])
+    @test_throws OverflowError Bijou64.decode(UInt64, UInt8[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
 
 end
