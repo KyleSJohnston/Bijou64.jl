@@ -1,5 +1,10 @@
 module Bijou64
 
+export BufferTooShort
+public encode, decode
+
+struct BufferTooShort <: Exception end
+
 tag2tier(tag::UInt8) = tag - 0xF7
 tier2tag(tier::UInt8) = 0xF7 + tier
 
@@ -64,22 +69,38 @@ end
 
 
 function decode(io::IO, ::Type{T}) where {T <: Unsigned}
-    tagbyte = Base.read(io, UInt8)
+    tagbyte = try
+        Base.read(io, UInt8)
+    catch e
+        if e isa EOFError
+            throw(BufferTooShort())
+        else
+            rethrow()
+        end
+    end
+
     if tagbyte < tier2offset(1)
         return tagbyte
     else
         tier = tagbyte - (tier2offset(1) - 1)
         payload_bytes::Vector{UInt8} = Base.read(io, tier)
+        if length(payload_bytes) != tier
+            # fewer than `tier` bytes were read
+            throw(BufferTooShort())
+        end
         while length(payload_bytes) < sizeof(T)
             # big-endian --> add padding to the front
             pushfirst!(payload_bytes, 0x00)
         end
         payload_array::Vector{T} = reinterpret(T, payload_bytes)
         payload = ntoh(payload_array[1])
-        return tier2offset(tier) + payload
+        value = tier2offset(tier) + payload
+        if tier == 8 && value < payload
+            throw(OverflowError("overflow detected"))
+        end
+        return value
     end
 end
-
 
 
 function encode(io::IO, v::Unsigned)

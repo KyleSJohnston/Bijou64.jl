@@ -76,4 +76,18 @@ using Test
         end
     end
 
+    # https://github.com/inkandswitch/bijou/blob/main/bijou64/SPEC.md#error-conditions
+    
+    let io = IOBuffer()
+        @test_throws BufferTooShort Bijou64.decode(io, UInt64)
+    end
+
+    let io = IOBuffer(UInt8[0xF9, 0x00])
+        @test_throws BufferTooShort Bijou64.decode(io, UInt64)
+    end
+
+    let io = IOBuffer(UInt8[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+        @test_throws OverflowError Bijou64.decode(io, UInt64)
+    end
+
 end
