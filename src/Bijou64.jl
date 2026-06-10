@@ -21,25 +21,25 @@ function _tier2offset(tier::Integer)::UInt8
 end
 
 
-function tier2offset(tier::Integer)
+function tier2offset(tier::Integer)::UInt64
     if tier == 0
         return 0x00
     elseif tier == 1
         return 0xF8  # 248
     elseif tier == 2
-        return 0x1F8
+        return 0x01F8
     elseif tier == 3
-        return 0x101F8
+        return 0x0101F8
     elseif tier == 4
-        return 0x10101F8
+        return 0x010101F8
     elseif tier == 5
-        return 0x1010101F8
+        return 0x01010101F8
     elseif tier == 6
-        return 0x101010101F8
+        return 0x0101010101F8
     elseif tier == 7
-        return 0x10101010101F8
+        return 0x010101010101F8
     elseif tier == 8
-        return 0x1010101010101F8
+        return 0x01010101010101F8
     else
         throw(ArgumentError("invalid tier $tier"))
     end
@@ -102,6 +102,14 @@ function read(io::IO, ::Type{T}) where {T <: Unsigned}
     end
 end
 
+function read(io::IO, ::Type{Vector{T}}) where {T <: Unsigned}
+    results = T[]
+    while !eof(io)
+        push!(results, read(io, T))
+    end
+    return results
+end
+
 
 function write(io::IO, v::Unsigned)
     if v < 248
@@ -113,5 +121,12 @@ function write(io::IO, v::Unsigned)
         Base.write(io, reinterpret(UInt8, [payload])[end-tier+1 : end])
     end
 end
+
+function write(io::IO, values::Vector{T}) where {T<:Unsigned}
+    for v in values
+        write(io, v)
+    end
+end
+
 
 end # module Bijou64
