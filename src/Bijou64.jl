@@ -68,7 +68,7 @@ function value2tier(v::Unsigned)::UInt8
 end
 
 
-function decode(io::IO, ::Type{T}) where {T <: Unsigned}
+function read(io::IO, ::Type{T}) where {T <: Unsigned}
     tagbyte = try
         Base.read(io, UInt8)
     catch e
@@ -103,7 +103,7 @@ function decode(io::IO, ::Type{T}) where {T <: Unsigned}
 end
 
 
-function encode(io::IO, v::Unsigned)
+function write(io::IO, v::Unsigned)
     if v < 248
         Base.write(io, convert(UInt8, v))
     else
