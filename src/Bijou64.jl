@@ -104,23 +104,32 @@ end
 
 function decode(::Type{T}, bytes::Vector{UInt8}) where {T <: Unsigned}
     results = T[]
-    decode!(results, bytes)
+    return decode!(results, bytes)
+end
+
+function encode!(bytes::Vector{UInt8}, values::Vector{T}) where {T <: Unsigned}
+    i = firstindex(bytes)
+    for v in values
+        if v < T(248)
+            bytes[i] = v
+        else
+            tier = value2tier(v)
+            bytes[i] = tier2tag(tier)
+            payload = hton(v - tier2offset(tier))  # big-endian unsigned integer
+            payload_bytes = reinterpret(UInt8, [payload])[end-tier+1 : end]
+            for pb in payload_bytes
+                i = nextind(bytes, i)
+                bytes[i] = pb
+            end
+        end
+        i = nextind(bytes, i)
+    end
+    return bytes[begin:prevind(bytes, i)]
 end
 
 function encode(values::Vector{T}) where {T <: Unsigned}
-    bytes = UInt8[]
-    for v in values
-        if v < T(248)
-            push!(bytes, v)
-        else
-            tier = value2tier(v)
-            push!(bytes, tier2tag(tier))
-            payload = hton(v - tier2offset(tier))  # big-endian unsigned integer
-            payload_bytes = reinterpret(UInt8, [payload])[end-tier+1 : end]
-            append!(bytes, payload_bytes)
-        end
-    end
-    return bytes
+    bytes = Vector{UInt8}(undef, 9 * length(values))
+    return encode!(bytes, values)
 end
 
 encode(v::T) where {T <: Unsigned} = encode([v])
