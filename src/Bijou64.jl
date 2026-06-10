@@ -8,18 +8,6 @@ struct BufferTooShort <: Exception end
 tag2tier(tag::UInt8) = tag - 0xF7
 tier2tag(tier::UInt8) = 0xF7 + tier
 
-function _tier2offset(tier::Integer)::UInt8
-    if tier == 0
-        return 0x00
-    elseif tier == 1
-        return 0xF8  # 248
-    elseif tier == 2
-        return offset(tier-1) + 256^(tier-1)
-    else
-        throw(ArgumentError("invalid tier $tier"))
-    end
-end
-
 const OFFSETS = (
     0x0000_0000_0000_0000,
     0x0000_0000_0000_00F8,  # 248
