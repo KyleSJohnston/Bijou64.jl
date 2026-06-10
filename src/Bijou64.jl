@@ -107,18 +107,22 @@ function decode(::Type{T}, bytes::Vector{UInt8}) where {T <: Unsigned}
     decode!(results, bytes)
 end
 
-
-function encode(v::T) where {T <: Unsigned}
-    if v < T(248)
-        return [convert(UInt8, v)]
+function encode(values::Vector{T}) where {T <: Unsigned}
+    bytes = UInt8[]
+    for v in values
+        if v < T(248)
+            push!(bytes, v)
+        else
+            tier = value2tier(v)
+            push!(bytes, tier2tag(tier))
+            payload = hton(v - tier2offset(tier))  # big-endian unsigned integer
+            payload_bytes = reinterpret(UInt8, [payload])[end-tier+1 : end]
+            append!(bytes, payload_bytes)
+        end
     end
-    tier = value2tier(v)
-    tag = tier2tag(tier)
-    payload = hton(v - tier2offset(tier))  # big-endian unsigned integer
-    payload_bytes = reinterpret(UInt8, [payload])[end-tier+1 : end]
-    return UInt8[tag, payload_bytes...]
+    return bytes
 end
 
-
+encode(v::T) where {T <: Unsigned} = encode([v])
 
 end # module Bijou64
