@@ -3,6 +3,9 @@ module Bijou64
 export BufferTooShort
 public encode, decode
 
+# Bijou64 only handles unsigned integers of 64 bits or less
+const UNSIGNED = Union{UInt8,UInt16,UInt32,UInt64}
+
 struct BufferTooShort <: Exception end
 
 tag2tier(tag::UInt8) = tag - 0xF7
@@ -20,9 +23,9 @@ const OFFSETS = (
     0x0101_0101_0101_01F8,
 )
 
-tier2offset(tier::T) where {T <: Unsigned} = OFFSETS[tier + one(T)]
+tier2offset(tier::T) where {T <: UNSIGNED} = OFFSETS[tier + one(T)]
 
-function value2tier(v::T) where {T <: Unsigned}
+function value2tier(v::T) where {T <: UNSIGNED}
     if T(0x00) ≤ v < T(0xF8)
         return 0x00
     elseif T(0xF8) ≤ v < T(0x01F8)
@@ -45,7 +48,7 @@ function value2tier(v::T) where {T <: Unsigned}
 end
 
 
-function decode(::Type{T}, bytes::Vector{UInt8}) where {T <: Unsigned}
+function decode(::Type{T}, bytes::Vector{UInt8}) where {T <: UNSIGNED}
     if length(bytes) == 0
         throw(BufferTooShort())
     end
@@ -99,7 +102,7 @@ function decode(::Type{T}, bytes::Vector{UInt8}) where {T <: Unsigned}
 end
 
 
-function encode(values::Vector{T}) where {T <: Unsigned}
+function encode(values::Vector{T}) where {T <: UNSIGNED}
     if length(values) == 0
         return UInt8[]
     end
@@ -135,6 +138,6 @@ function encode(values::Vector{T}) where {T <: Unsigned}
 end
 
 
-encode(v::T) where {T <: Unsigned} = encode([v])
+encode(v::T) where {T <: UNSIGNED} = encode([v])
 
 end # module Bijou64
