@@ -1,0 +1,54 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+    tags: ['*']
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: '0 12 * * 3'
+  workflow_dispatch:
+concurrency:
+  # Skip intermediate builds: always.
+  # Cancel intermediate builds: only if it is a pull request build.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+jobs:
+  test:
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
+      actions: write
+      contents: read
+    strategy:
+      fail-fast: true
+      matrix:
+        version:
+          - '1.10'
+          - '1.10-nightly'
+          - '1.12'
+          - '1.12-nightly'
+          # - 'pre'
+        os:
+          - ubuntu-latest
+        arch:
+          - x64
+    steps:
+      - name: Install Pass
+        run: sudo apt-get update && sudo apt-get install -y pass
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32  # v3.0.2
+        with:
+          version: ${{ matrix.version }}
+          arch: ${{ matrix.arch }}
+      - uses: julia-actions/cache@a45e8fa8be21c18a06b7177052533149e61e9b38  # v3.1.0
+      - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1  # v1.7.0
+      - uses: julia-actions/julia-runtest@d60b785c6f2bdf4ebfb18b2b6f7d93b7dfb0efe3  # v1.11.4
+        if: ${{ matrix.version == '1.12' }}
+        with:
+          test_args: '--jettest'
+      - uses: julia-actions/julia-runtest@d60b785c6f2bdf4ebfb18b2b6f7d93b7dfb0efe3  # v1.11.4
+        if: ${{ matrix.version != '1.12' }}

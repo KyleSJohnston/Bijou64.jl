@@ -6,6 +6,7 @@ public encode, decode
 # Bijou64 only handles unsigned integers of 64 bits or less
 const UNSIGNED = Union{UInt8,UInt16,UInt32,UInt64}
 
+"Exception indicating that the byte buffer (vector) is too short"
 struct BufferTooShort <: Exception end
 
 tag2tier(tag::UInt8) = tag - 0xF7

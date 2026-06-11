@@ -91,7 +91,9 @@ end
     @testset "Code quality (Aqua.jl)" begin
         Aqua.test_all(Bijou64)
     end
-    @testset "Code inference (JET.jl)" begin
-        JET.test_package(Bijou64; target_modules = (Bijou64,))
+    if "--jettest" in ARGS
+        @testset "Code inference (JET.jl)" begin
+            JET.test_package(Bijou64; target_modules = (Bijou64,))
+        end
     end
 end
