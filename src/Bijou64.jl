@@ -26,21 +26,21 @@ const OFFSETS = (
 tier2offset(tier::T) where {T <: UNSIGNED} = OFFSETS[tier + one(T)]
 
 function value2tier(v::T) where {T <: UNSIGNED}
-    if T(0x00) ≤ v < T(0xF8)
+    if 0x00 ≤ v < 0xF8
         return 0x00
-    elseif T(0xF8) ≤ v < T(0x01F8)
+    elseif 0xF8 ≤ v < 0x01F8
         return 0x01
-    elseif T(0x01F8) ≤ v < T(0x0101F8)
+    elseif 0x01F8 ≤ v < 0x0101F8
         return 0x02
-    elseif T(0x0101F8) ≤ v < T(0x010101F8)
+    elseif 0x0101F8 ≤ v < 0x010101F8
         return 0x03
-    elseif T(0x010101F8) ≤ v < T(0x01_010101F8)
+    elseif 0x010101F8 ≤ v < 0x01_010101F8
         return 0x04
-    elseif T(0x01_010101F8) ≤ v < T(0x0101_010101F8)
+    elseif 0x01_010101F8 ≤ v < 0x0101_010101F8
         return 0x05
-    elseif T(0x0101_010101F8) ≤ v < T(0x010101_010101F8)
+    elseif 0x0101_010101F8 ≤ v < 0x010101_010101F8
         return 0x06
-    elseif T(0x010101_010101F8) ≤ v < T(0x01010101_010101F8)
+    elseif 0x010101_010101F8 ≤ v < 0x01010101_010101F8
         return 0x07
     else
         return 0x08

@@ -66,6 +66,18 @@ using Test
 
 end
 
+@testset "Type Tests" begin
+    for T1 in (UInt8, UInt16, UInt32, UInt64), T2 in (UInt8, UInt16, UInt32, UInt64)
+        if sizeof(T2) < sizeof(T1)
+            continue
+        end
+        x = rand(T1, 1028)
+        y = Bijou64.encode(x)
+        z = Bijou64.decode(T1, y)
+        @test x == z
+    end
+end
+
 @testset "Source Code Tests" begin
     @testset "Code quality (Aqua.jl)" begin
         Aqua.test_all(Bijou64)
