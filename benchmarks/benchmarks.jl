@@ -1,3 +1,4 @@
+# Use `--track-allocation=user` to obtain allocation values by line.
 using BenchmarkTools
 
 using Bijou64

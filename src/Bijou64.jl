@@ -97,30 +97,41 @@ function decode(::Type{T}, bytes::Vector{UInt8}) where {T <: Unsigned}
     return decode!(results, bytes)
 end
 
-function encode!(bytes::Vector{UInt8}, values::Vector{T}) where {T <: Unsigned}
-    i = firstindex(bytes)
+function encode(values::Vector{T}) where {T <: Unsigned}
+    if length(values) == 0
+        return UInt8[]
+    end
+
+    # Pre-allocate an array for the results and fill it.
+    # `maxbytes` inspired by https://github.com/davidssmith/LittleEndianBase128.jl/blob/85f2c1e6b8041e9bcfbab897e673a0a45186d3db/src/LittleEndianBase128.jl#L38
+    maxbytes = length(values) * (0x01 + value2tier(typemax(T)))
+    bytes = Vector{UInt8}(undef, maxbytes)
+
+    # Pre-allocate payload array for `reinterpret` in the loop.
+    # This avoids incurring the cost of temporary array construction
+    # during each iteration.
+    # The eltype is UInt64 because `tier2offset` always returns a UInt64.
+    payload = Vector{UInt64}(undef, 1)
+
+    i = 1  # firstindex(bytes)
     for v in values
-        if v < T(248)
+        if v < 248  # T(248)
             bytes[i] = v
         else
             tier = value2tier(v)
             bytes[i] = tier2tag(tier)
-            payload = hton(v - tier2offset(tier))  # big-endian unsigned integer
-            payload_bytes = reinterpret(UInt8, [payload])[end-tier+1 : end]
+            payload[1] = hton(v - tier2offset(tier))  # big-endian unsigned integer
+            payload_bytes = @views reinterpret(UInt8, payload)[end-tier+1 : end]
             for pb in payload_bytes
-                i = nextind(bytes, i)
+                i += 1  # nextind(bytes, i)
                 bytes[i] = pb
             end
         end
-        i = nextind(bytes, i)
+        i += 1  # nextind(bytes, i)
     end
-    return bytes[begin:prevind(bytes, i)]
+    return bytes[begin:i-1]
 end
 
-function encode(values::Vector{T}) where {T <: Unsigned}
-    bytes = Vector{UInt8}(undef, 9 * length(values))
-    return encode!(bytes, values)
-end
 
 encode(v::T) where {T <: Unsigned} = encode([v])
 

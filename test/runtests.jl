@@ -1,4 +1,6 @@
+using Aqua
 using Bijou64
+using JET
 using Test
 
 @testset "Tests from Specification" begin
@@ -62,4 +64,13 @@ using Test
     @test_throws BufferTooShort Bijou64.decode(UInt64, UInt8[0xF9, 0x00])
     @test_throws OverflowError Bijou64.decode(UInt64, UInt8[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
 
+end
+
+@testset "Source Code Tests" begin
+    @testset "Code quality (Aqua.jl)" begin
+        Aqua.test_all(Bijou64)
+    end
+    @testset "Code inference (JET.jl)" begin
+        JET.test_package(Bijou64; target_modules = (Bijou64,))
+    end
 end
