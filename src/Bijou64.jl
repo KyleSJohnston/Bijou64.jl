@@ -119,7 +119,14 @@ function decode(::Type{T}, bytes::Vector{UInt8})::Vector{T} where {T <: UNSIGNED
 end
 
 
-function encode(values::Vector{T}) where {T <: UNSIGNED}
+"""
+    encode(values)
+
+Encode `values` using the bijou64 variable-length integer encoding into a Vector{UInt8}
+
+`values` must be a `Vector{T}`, where `T` may be UInt8, UInt16, UInt32, or UInt64.
+"""
+function encode(values::Vector{T})::Vector{UInt8} where {T <: UNSIGNED}
     if length(values) == 0
         return UInt8[]
     end
@@ -155,6 +162,13 @@ function encode(values::Vector{T}) where {T <: UNSIGNED}
 end
 
 
+"""
+    encode(v)
+
+Encode `v` using the bijou64 variable-length integer encoding into a Vector{UInt8}
+
+`v` must be a UInt8, a UInt16, a UInt32, or a UInt64.
+"""
 encode(v::T) where {T <: UNSIGNED} = encode([v])
 
 end # module Bijou64
