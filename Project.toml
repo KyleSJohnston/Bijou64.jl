@@ -2,3 +2,6 @@ name = "Bijou64"
 uuid = "3cb9262b-5a91-48ae-a736-11ee926efa86"
 version = "0.1.0"
 authors = ["Kyle S. Johnston <KyleSJohnston@users.noreply.github.com>"]
+
+[compat]
+julia = "1.12"

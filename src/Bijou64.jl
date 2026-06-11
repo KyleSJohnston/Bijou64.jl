@@ -8,125 +8,133 @@ struct BufferTooShort <: Exception end
 tag2tier(tag::UInt8) = tag - 0xF7
 tier2tag(tier::UInt8) = 0xF7 + tier
 
-function _tier2offset(tier::Integer)::UInt8
-    if tier == 0
+const OFFSETS = (
+    0x0000_0000_0000_0000,
+    0x0000_0000_0000_00F8,  # 248
+    0x0000_0000_0000_01F8,
+    0x0000_0000_0001_01F8,
+    0x0000_0000_0101_01F8,
+    0x0000_0001_0101_01F8,
+    0x0000_0101_0101_01F8,
+    0x0001_0101_0101_01F8,
+    0x0101_0101_0101_01F8,
+)
+
+tier2offset(tier::T) where {T <: Unsigned} = OFFSETS[tier + one(T)]
+
+function value2tier(v::T) where {T <: Unsigned}
+    if T(0x00) ≤ v < T(0xF8)
         return 0x00
-    elseif tier == 1
-        return 0xF8  # 248
-    elseif tier == 2
-        return offset(tier-1) + 256^(tier-1)
+    elseif T(0xF8) ≤ v < T(0x01F8)
+        return 0x01
+    elseif T(0x01F8) ≤ v < T(0x0101F8)
+        return 0x02
+    elseif T(0x0101F8) ≤ v < T(0x010101F8)
+        return 0x03
+    elseif T(0x010101F8) ≤ v < T(0x01_010101F8)
+        return 0x04
+    elseif T(0x01_010101F8) ≤ v < T(0x0101_010101F8)
+        return 0x05
+    elseif T(0x0101_010101F8) ≤ v < T(0x010101_010101F8)
+        return 0x06
+    elseif T(0x010101_010101F8) ≤ v < T(0x01010101_010101F8)
+        return 0x07
     else
-        throw(ArgumentError("invalid tier $tier"))
+        return 0x08
     end
 end
 
 
-function tier2offset(tier::Integer)::UInt64
-    if tier == 0
-        return 0x00
-    elseif tier == 1
-        return 0xF8  # 248
-    elseif tier == 2
-        return 0x01F8
-    elseif tier == 3
-        return 0x0101F8
-    elseif tier == 4
-        return 0x010101F8
-    elseif tier == 5
-        return 0x01010101F8
-    elseif tier == 6
-        return 0x0101010101F8
-    elseif tier == 7
-        return 0x010101010101F8
-    elseif tier == 8
-        return 0x01010101010101F8
-    else
-        throw(ArgumentError("invalid tier $tier"))
+function decode(::Type{T}, bytes::Vector{UInt8}) where {T <: Unsigned}
+    if length(bytes) == 0
+        throw(BufferTooShort())
     end
-end
 
-function value2tier(v::Unsigned)::UInt8
-    if 0x00 ≤ v < 0xF8
-        return 0
-    elseif 0xF8 ≤ v < 0x01F8
-        return 1
-    elseif 0x01F8 ≤ v < 0x0101F8
-        return 2
-    elseif 0x0101F8 ≤ v < 0x010101F8
-        return 3
-    elseif 0x010101F8 ≤ v < 0x01_010101F8
-        return 4
-    elseif 0x01_010101F8 ≤ v < 0x0101_010101F8
-        return 5
-    elseif 0x0101_010101F8 ≤ v < 0x010101_010101F8
-        return 6
-    elseif 0x010101_010101F8 ≤ v < 0x01010101_010101F8
-        return 7
-    else
-        return 8
-    end
-end
+    # Pre-allocate the results array as if each of the encoded integers fit into a
+    # single byte.
+    results = Vector{T}(undef, length(bytes))
 
+    ix = firstindex(results)
+    payload_bytes = zeros(UInt8, sizeof(T))
+    i = firstindex(bytes)
+    n = lastindex(bytes)
+    while i ≤ n
+        tagbyte = bytes[i]
 
-function read(io::IO, ::Type{T}) where {T <: Unsigned}
-    tagbyte = try
-        Base.read(io, UInt8)
-    catch e
-        if e isa EOFError
-            throw(BufferTooShort())
+        if tagbyte < 0xf8  # 248
+            results[ix] = tagbyte
         else
-            rethrow()
+            tier = tagbyte - 0xf7  # 247
+            padding = sizeof(T) - tier
+            for j in eachindex(payload_bytes)
+                if j ≤ padding
+                    payload_bytes[j] = 0x00
+                else
+                    i = nextind(bytes, i)
+                    try
+                        payload_bytes[j] = bytes[i]
+                    catch e
+                        if e isa BoundsError
+                            throw(BufferTooShort())
+                        else
+                            rethrow()
+                        end
+                    end
+                end
+            end
+            # On the next line, we can treat `payload_array` as Vector{T}, but
+            # adding `::Vector{T}` causes substantial memory allocation.
+            payload_array = reinterpret(T, payload_bytes)
+            payload = ntoh(payload_array[1])
+            value = tier2offset(tier) + payload
+            if tier == 8 && value < payload
+                throw(OverflowError("overflow detected"))
+            end
+            results[ix] = value
         end
+        i = nextind(bytes, i)
+        ix = nextind(results, ix)
     end
-
-    if tagbyte < tier2offset(1)
-        return tagbyte
-    else
-        tier = tagbyte - (tier2offset(1) - 1)
-        payload_bytes::Vector{UInt8} = Base.read(io, tier)
-        if length(payload_bytes) != tier
-            # fewer than `tier` bytes were read
-            throw(BufferTooShort())
-        end
-        while length(payload_bytes) < sizeof(T)
-            # big-endian --> add padding to the front
-            pushfirst!(payload_bytes, 0x00)
-        end
-        payload_array::Vector{T} = reinterpret(T, payload_bytes)
-        payload = ntoh(payload_array[1])
-        value = tier2offset(tier) + payload
-        if tier == 8 && value < payload
-            throw(OverflowError("overflow detected"))
-        end
-        return value
-    end
+    return results[begin:prevind(results, ix)]
 end
 
-function read(io::IO, ::Type{Vector{T}}) where {T <: Unsigned}
-    results = T[]
-    while !eof(io)
-        push!(results, read(io, T))
+
+function encode(values::Vector{T}) where {T <: Unsigned}
+    if length(values) == 0
+        return UInt8[]
     end
-    return results
-end
 
+    # Pre-allocate an array for the results and fill it.
+    # `maxbytes` inspired by https://github.com/davidssmith/LittleEndianBase128.jl/blob/85f2c1e6b8041e9bcfbab897e673a0a45186d3db/src/LittleEndianBase128.jl#L38
+    maxbytes = length(values) * (0x01 + value2tier(typemax(T)))
+    bytes = Vector{UInt8}(undef, maxbytes)
 
-function write(io::IO, v::Unsigned)
-    if v < 248
-        Base.write(io, convert(UInt8, v))
-    else
-        tier = value2tier(v)
-        Base.write(io, tier2tag(tier))
-        payload = hton(v - tier2offset(tier))  # big-endian unsigned integer
-        Base.write(io, reinterpret(UInt8, [payload])[end-tier+1 : end])
-    end
-end
+    # Pre-allocate payload array for `reinterpret` in the loop.
+    # This avoids incurring the cost of temporary array construction
+    # during each iteration.
+    # The eltype is UInt64 because `tier2offset` always returns a UInt64.
+    payload = Vector{UInt64}(undef, 1)
 
-function write(io::IO, values::Vector{T}) where {T<:Unsigned}
+    i = 1  # firstindex(bytes)
     for v in values
-        write(io, v)
+        if v < 248  # T(248)
+            bytes[i] = v
+        else
+            tier = value2tier(v)
+            bytes[i] = tier2tag(tier)
+            payload[1] = hton(v - tier2offset(tier))  # big-endian unsigned integer
+            payload_bytes = @views reinterpret(UInt8, payload)[end-tier+1 : end]
+            for pb in payload_bytes
+                i += 1  # nextind(bytes, i)
+                bytes[i] = pb
+            end
+        end
+        i += 1  # nextind(bytes, i)
     end
+    return bytes[begin:i-1]
 end
 
+
+encode(v::T) where {T <: Unsigned} = encode([v])
 
 end # module Bijou64
