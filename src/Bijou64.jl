@@ -3,6 +3,8 @@ bijou64 variable-length integer encoding
 """
 module Bijou64
 
+using Compat
+
 export BufferTooShort
 @compat public encode, decode
 
