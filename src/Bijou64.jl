@@ -1,7 +1,10 @@
+"""
+bijou64 variable-length integer encoding
+"""
 module Bijou64
 
 export BufferTooShort
-public encode, decode
+@compat public encode, decode
 
 # Bijou64 only handles unsigned integers of 64 bits or less
 const UNSIGNED = Union{UInt8,UInt16,UInt32,UInt64}

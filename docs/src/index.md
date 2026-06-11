@@ -39,5 +39,5 @@ julia> Bijou64.decode(UInt64, [0xfa, 0x00, 0x03, 0xc0])
 ```@autodocs
 Modules = [Bijou64]
 Private = false
-Order   = [:type, :module]
+Order   = [:module, :function, :type]
 ```
