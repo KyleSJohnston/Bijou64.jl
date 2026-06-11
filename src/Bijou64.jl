@@ -45,10 +45,14 @@ function value2tier(v::T) where {T <: Unsigned}
 end
 
 
-function decode!(results::Vector{T}, bytes::Vector{UInt8}) where {T <: Unsigned}
+function decode(::Type{T}, bytes::Vector{UInt8}) where {T <: Unsigned}
     if length(bytes) == 0
         throw(BufferTooShort())
     end
+
+    # Pre-allocate the results array as if each of the encoded integers fit into a
+    # single byte.
+    results = Vector{T}(undef, length(bytes))
 
     ix = firstindex(results)
     payload_bytes = zeros(UInt8, sizeof(T))
@@ -78,7 +82,9 @@ function decode!(results::Vector{T}, bytes::Vector{UInt8}) where {T <: Unsigned}
                     end
                 end
             end
-            payload_array::Vector{T} = reinterpret(T, payload_bytes)
+            # On the next line, we can treat `payload_array` as Vector{T}, but
+            # adding `::Vector{T}` causes substantial memory allocation.
+            payload_array = reinterpret(T, payload_bytes)
             payload = ntoh(payload_array[1])
             value = tier2offset(tier) + payload
             if tier == 8 && value < payload
@@ -92,10 +98,6 @@ function decode!(results::Vector{T}, bytes::Vector{UInt8}) where {T <: Unsigned}
     return results[begin:prevind(results, ix)]
 end
 
-function decode(::Type{T}, bytes::Vector{UInt8}) where {T <: Unsigned}
-    results = Vector{T}(undef, length(bytes))
-    return decode!(results, bytes)
-end
 
 function encode(values::Vector{T}) where {T <: Unsigned}
     if length(values) == 0
