@@ -73,8 +73,17 @@ end
         end
         x = rand(T1, 1028)
         y = Bijou64.encode(x)
-        z = Bijou64.decode(T1, y)
+        z = Bijou64.decode(T2, y)
         @test x == z
+    end
+
+    for T1 in (UInt8, UInt16, UInt32, UInt64), T2 in (UInt8, UInt16, UInt32, UInt64)
+        if sizeof(T1) > sizeof(T2)
+            # Every value in `x::Vector{T1}` is too large for `T2`.
+            x = rand(typemax(T2)+0x01:typemax(T1), 1028)
+            y = Bijou64.encode(x)
+            @test_throws OverflowError Bijou64.decode(T2, y)
+        end
     end
 end
 

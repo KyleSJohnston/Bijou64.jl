@@ -25,7 +25,7 @@ const OFFSETS = (
 
 tier2offset(tier::T) where {T <: UNSIGNED} = OFFSETS[tier + one(T)]
 
-function value2tier(v::T) where {T <: UNSIGNED}
+function value2tier(v::T)::UInt8 where {T <: UNSIGNED}
     if 0x00 ≤ v < 0xF8
         return 0x00
     elseif 0xF8 ≤ v < 0x01F8
@@ -48,7 +48,21 @@ function value2tier(v::T) where {T <: UNSIGNED}
 end
 
 
-function decode(::Type{T}, bytes::Vector{UInt8}) where {T <: UNSIGNED}
+"""
+    decode(T, bytes)::Vector{T}
+
+Decode `bytes` using the bijou64 variable-length integer encoding into a vector
+of unsigned integers of type `T`
+
+`T` may be UInt8, UInt16, UInt32, or UInt64.
+
+A `BufferTooShort` exception is thrown if `bytes` is empty or if `bytes` has too few
+elements for the tier of the encoded integer.
+
+An `OverflowError` is thrown if there is an arithmetic overflow on tier 8 or if a tier
+of encoded integer is too large for `T`.
+"""
+function decode(::Type{T}, bytes::Vector{UInt8})::Vector{T} where {T <: UNSIGNED}
     if length(bytes) == 0
         throw(BufferTooShort())
     end
@@ -68,6 +82,9 @@ function decode(::Type{T}, bytes::Vector{UInt8}) where {T <: UNSIGNED}
             results[ix] = tagbyte
         else
             tier = tagbyte - 0xf7  # 247
+            if tier > sizeof(T)
+                throw(OverflowError("cannot decode tier $tier integer into a $T"))
+            end
             padding = sizeof(T) - tier
             for j in eachindex(payload_bytes)
                 if j ≤ padding
