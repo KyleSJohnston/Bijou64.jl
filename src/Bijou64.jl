@@ -1,8 +1,17 @@
+"""
+bijou64 variable-length integer encoding
+"""
 module Bijou64
 
-export BufferTooShort
-public encode, decode
+using Compat
 
+export BufferTooShort
+@compat public encode, decode
+
+# Bijou64 only handles unsigned integers of 64 bits or less
+const UNSIGNED = Union{UInt8,UInt16,UInt32,UInt64}
+
+"Exception indicating that the byte buffer (vector) is too short"
 struct BufferTooShort <: Exception end
 
 tag2tier(tag::UInt8) = tag - 0xF7
@@ -20,24 +29,24 @@ const OFFSETS = (
     0x0101_0101_0101_01F8,
 )
 
-tier2offset(tier::T) where {T <: Unsigned} = OFFSETS[tier + one(T)]
+tier2offset(tier::T) where {T <: UNSIGNED} = OFFSETS[tier + one(T)]
 
-function value2tier(v::T) where {T <: Unsigned}
-    if T(0x00) ≤ v < T(0xF8)
+function value2tier(v::T)::UInt8 where {T <: UNSIGNED}
+    if 0x00 ≤ v < 0xF8
         return 0x00
-    elseif T(0xF8) ≤ v < T(0x01F8)
+    elseif 0xF8 ≤ v < 0x01F8
         return 0x01
-    elseif T(0x01F8) ≤ v < T(0x0101F8)
+    elseif 0x01F8 ≤ v < 0x0101F8
         return 0x02
-    elseif T(0x0101F8) ≤ v < T(0x010101F8)
+    elseif 0x0101F8 ≤ v < 0x010101F8
         return 0x03
-    elseif T(0x010101F8) ≤ v < T(0x01_010101F8)
+    elseif 0x010101F8 ≤ v < 0x01_010101F8
         return 0x04
-    elseif T(0x01_010101F8) ≤ v < T(0x0101_010101F8)
+    elseif 0x01_010101F8 ≤ v < 0x0101_010101F8
         return 0x05
-    elseif T(0x0101_010101F8) ≤ v < T(0x010101_010101F8)
+    elseif 0x0101_010101F8 ≤ v < 0x010101_010101F8
         return 0x06
-    elseif T(0x010101_010101F8) ≤ v < T(0x01010101_010101F8)
+    elseif 0x010101_010101F8 ≤ v < 0x01010101_010101F8
         return 0x07
     else
         return 0x08
@@ -45,7 +54,21 @@ function value2tier(v::T) where {T <: Unsigned}
 end
 
 
-function decode(::Type{T}, bytes::Vector{UInt8}) where {T <: Unsigned}
+"""
+    decode(T, bytes)::Vector{T}
+
+Decode `bytes` using the bijou64 variable-length integer encoding into a vector
+of unsigned integers of type `T`
+
+`T` may be UInt8, UInt16, UInt32, or UInt64.
+
+A `BufferTooShort` exception is thrown if `bytes` is empty or if `bytes` has too few
+elements for the tier of the encoded integer.
+
+An `OverflowError` is thrown if there is an arithmetic overflow on tier 8 or if a tier
+of encoded integer is too large for `T`.
+"""
+function decode(::Type{T}, bytes::Vector{UInt8})::Vector{T} where {T <: UNSIGNED}
     if length(bytes) == 0
         throw(BufferTooShort())
     end
@@ -65,6 +88,9 @@ function decode(::Type{T}, bytes::Vector{UInt8}) where {T <: Unsigned}
             results[ix] = tagbyte
         else
             tier = tagbyte - 0xf7  # 247
+            if tier > sizeof(T)
+                throw(OverflowError("cannot decode tier $tier integer into a $T"))
+            end
             padding = sizeof(T) - tier
             for j in eachindex(payload_bytes)
                 if j ≤ padding
@@ -99,7 +125,14 @@ function decode(::Type{T}, bytes::Vector{UInt8}) where {T <: Unsigned}
 end
 
 
-function encode(values::Vector{T}) where {T <: Unsigned}
+"""
+    encode(values)
+
+Encode `values` using the bijou64 variable-length integer encoding into a Vector{UInt8}
+
+`values` must be a `Vector{T}`, where `T` may be UInt8, UInt16, UInt32, or UInt64.
+"""
+function encode(values::Vector{T})::Vector{UInt8} where {T <: UNSIGNED}
     if length(values) == 0
         return UInt8[]
     end
@@ -135,6 +168,13 @@ function encode(values::Vector{T}) where {T <: Unsigned}
 end
 
 
-encode(v::T) where {T <: Unsigned} = encode([v])
+"""
+    encode(v)
+
+Encode `v` using the bijou64 variable-length integer encoding into a Vector{UInt8}
+
+`v` must be a UInt8, a UInt16, a UInt32, or a UInt64.
+"""
+encode(v::T) where {T <: UNSIGNED} = encode([v])
 
 end # module Bijou64

@@ -66,11 +66,34 @@ using Test
 
 end
 
+@testset "Type Tests" begin
+    for T1 in (UInt8, UInt16, UInt32, UInt64), T2 in (UInt8, UInt16, UInt32, UInt64)
+        if sizeof(T2) < sizeof(T1)
+            continue
+        end
+        x = rand(T1, 1028)
+        y = Bijou64.encode(x)
+        z = Bijou64.decode(T2, y)
+        @test x == z
+    end
+
+    for T1 in (UInt8, UInt16, UInt32, UInt64), T2 in (UInt8, UInt16, UInt32, UInt64)
+        if sizeof(T1) > sizeof(T2)
+            # Every value in `x::Vector{T1}` is too large for `T2`.
+            x = rand(typemax(T2)+0x01:typemax(T1), 1028)
+            y = Bijou64.encode(x)
+            @test_throws OverflowError Bijou64.decode(T2, y)
+        end
+    end
+end
+
 @testset "Source Code Tests" begin
     @testset "Code quality (Aqua.jl)" begin
         Aqua.test_all(Bijou64)
     end
-    @testset "Code inference (JET.jl)" begin
-        JET.test_package(Bijou64; target_modules = (Bijou64,))
+    if "--jettest" in ARGS
+        @testset "Code inference (JET.jl)" begin
+            JET.test_package(Bijou64; target_modules = (Bijou64,))
+        end
     end
 end

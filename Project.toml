@@ -3,5 +3,9 @@ uuid = "3cb9262b-5a91-48ae-a736-11ee926efa86"
 version = "0.1.0"
 authors = ["Kyle S. Johnston <KyleSJohnston@users.noreply.github.com>"]
 
+[deps]
+Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
+
 [compat]
-julia = "1.12"
+Compat = "3.47.0, 4"
+julia = "1.10"
