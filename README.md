@@ -34,9 +34,9 @@ The last update to LittleEndianBase128.jl was in August 2018, so there are likel
 
 | Distribution | Rust | LittleEndianBase128.jl | Bijou.jl |
 | :-- | --: | --: | --: |
-| tiny | 1.78 | 1222 | 28.86 |
-| small | 3.93 | 2371 | 103.52 |
-| medium | 3.86 | 4442 | 157.30 |
-| large | 3.11 | 8386 | 272.53 |
-| boundary | 3.75 | 4301 | 206.47 |
-| uniform | 3.08 | 8398 | 275.07 |
+| tiny | 1.78 | 1222 | 26.15 |
+| small | 3.93 | 2371 | 97.48 |
+| medium | 3.86 | 4442 | 156.91 |
+| large | 3.11 | 8386 | 268.43 |
+| boundary | 3.75 | 4301 | 155.36 |
+| uniform | 3.08 | 8398 | 268.76 |
