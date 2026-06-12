@@ -139,6 +139,8 @@ function encode(values::Vector{T})::Vector{UInt8} where {T <: UNSIGNED}
 
     # Pre-allocate an array for the results and fill it.
     # `maxbytes` inspired by https://github.com/davidssmith/LittleEndianBase128.jl/blob/85f2c1e6b8041e9bcfbab897e673a0a45186d3db/src/LittleEndianBase128.jl#L38
+    # Because `bytes` will always be large enough for all of `values`, `@inbounds` can be
+    # used when indexing into `bytes`.
     maxbytes = length(values) * (0x01 + value2tier(typemax(T)))
     bytes = Vector{UInt8}(undef, maxbytes)
 
@@ -151,20 +153,20 @@ function encode(values::Vector{T})::Vector{UInt8} where {T <: UNSIGNED}
     i = firstindex(bytes)
     for v in values
         if v < 248  # T(248)
-            bytes[i] = v
+            @inbounds bytes[i] = v
         else
             tier = value2tier(v)
-            bytes[i] = tier2tag(tier)
+            @inbounds bytes[i] = tier2tag(tier)
             payload[1] = hton(v - tier2offset(tier))  # big-endian unsigned integer
             payload_bytes = @views reinterpret(UInt8, payload)[end-tier+1 : end]
             for pb in payload_bytes
                 i = nextind(bytes, i)
-                bytes[i] = pb
+                @inbounds bytes[i] = pb
             end
         end
         i = nextind(bytes, i)
     end
-    return bytes[begin:i-1]
+    return bytes[begin:prevind(bytes, i)]
 end
 
 
