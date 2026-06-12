@@ -148,7 +148,7 @@ function encode(values::Vector{T})::Vector{UInt8} where {T <: UNSIGNED}
     # The eltype is UInt64 because `tier2offset` always returns a UInt64.
     payload = Vector{UInt64}(undef, 1)
 
-    i = 1  # firstindex(bytes)
+    i = firstindex(bytes)
     for v in values
         if v < 248  # T(248)
             bytes[i] = v
@@ -158,11 +158,11 @@ function encode(values::Vector{T})::Vector{UInt8} where {T <: UNSIGNED}
             payload[1] = hton(v - tier2offset(tier))  # big-endian unsigned integer
             payload_bytes = @views reinterpret(UInt8, payload)[end-tier+1 : end]
             for pb in payload_bytes
-                i += 1  # nextind(bytes, i)
+                i = nextind(bytes, i)
                 bytes[i] = pb
             end
         end
-        i += 1  # nextind(bytes, i)
+        i = nextind(bytes, i)
     end
     return bytes[begin:i-1]
 end
