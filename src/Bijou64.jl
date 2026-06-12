@@ -77,7 +77,7 @@ function decode(::Type{T}, bytes::Vector{UInt8})::Vector{T} where {T <: UNSIGNED
     # single byte.
     results = Vector{T}(undef, length(bytes))
 
-    ix = firstindex(results)
+    i = firstindex(results)
     payload_bytes = zeros(UInt8, sizeof(T))
 
     tier = 0x00
@@ -100,14 +100,14 @@ function decode(::Type{T}, bytes::Vector{UInt8})::Vector{T} where {T <: UNSIGNED
                 if tier == 8 && value < payload
                     throw(OverflowError("overflow detected"))
                 end
-                results[ix] = value
-                ix = nextind(results, ix)
+                results[i] = value
+                i = nextind(results, i)
             end
         else
             # `b` is a tagbyte
             if b < 0xf8  # 248
-                results[ix] = b
-                ix = nextind(results, ix)
+                results[i] = b
+                i = nextind(results, i)
             else
                 tier = b - 0xf7  # 247
                 if tier > sizeof(T)
@@ -129,7 +129,7 @@ function decode(::Type{T}, bytes::Vector{UInt8})::Vector{T} where {T <: UNSIGNED
         throw(BufferTooShort())
     end
 
-    return results[begin:prevind(results, ix)]
+    return results[begin:prevind(results, i)]
 end
 
 
