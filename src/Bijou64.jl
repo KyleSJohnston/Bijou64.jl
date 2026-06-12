@@ -79,48 +79,56 @@ function decode(::Type{T}, bytes::Vector{UInt8})::Vector{T} where {T <: UNSIGNED
 
     ix = firstindex(results)
     payload_bytes = zeros(UInt8, sizeof(T))
-    i = firstindex(bytes)
-    n = lastindex(bytes)
-    while i ≤ n
-        tagbyte = bytes[i]
 
-        if tagbyte < 0xf8  # 248
-            results[ix] = tagbyte
-        else
-            tier = tagbyte - 0xf7  # 247
-            if tier > sizeof(T)
-                throw(OverflowError("cannot decode tier $tier integer into a $T"))
+    tier = 0x00
+    padding = 0
+    payload_bytes_needed = 0
+
+    for b in bytes
+        if payload_bytes_needed > 0
+            # `b` is a payload byte
+            payload_bytes[lastindex(payload_bytes)-payload_bytes_needed+1] = b
+            payload_bytes_needed -= 1
+            if payload_bytes_needed == 0
+                # `b` completes the last integer; add the integer to `results`.
+
+                # On the next line, we can treat `payload_array` as Vector{T}, but
+                # adding `::Vector{T}` causes substantial memory allocation.
+                payload_array = reinterpret(T, payload_bytes)
+                payload = ntoh(payload_array[1])
+                value = tier2offset(tier) + payload
+                if tier == 8 && value < payload
+                    throw(OverflowError("overflow detected"))
+                end
+                results[ix] = value
+                ix = nextind(results, ix)
             end
-            padding = sizeof(T) - tier
-            for j in eachindex(payload_bytes)
-                if j ≤ padding
-                    payload_bytes[j] = 0x00
-                else
-                    i = nextind(bytes, i)
-                    try
-                        payload_bytes[j] = bytes[i]
-                    catch e
-                        if e isa BoundsError
-                            throw(BufferTooShort())
-                        else
-                            rethrow()
-                        end
+        else
+            # `b` is a tagbyte
+            if b < 0xf8  # 248
+                results[ix] = b
+                ix = nextind(results, ix)
+            else
+                tier = b - 0xf7  # 247
+                if tier > sizeof(T)
+                    throw(OverflowError("cannot decode tier $tier integer into a $T"))
+                end
+                padding = sizeof(T) - tier
+                payload_bytes_needed = tier
+                for j in eachindex(payload_bytes)
+                    if j ≤ padding
+                        payload_bytes[j] = 0x00
                     end
                 end
             end
-            # On the next line, we can treat `payload_array` as Vector{T}, but
-            # adding `::Vector{T}` causes substantial memory allocation.
-            payload_array = reinterpret(T, payload_bytes)
-            payload = ntoh(payload_array[1])
-            value = tier2offset(tier) + payload
-            if tier == 8 && value < payload
-                throw(OverflowError("overflow detected"))
-            end
-            results[ix] = value
         end
-        i = nextind(bytes, i)
-        ix = nextind(results, ix)
     end
+
+    if payload_bytes_needed > 0
+        # `bytes` ends before the last integer is completely decoded.
+        throw(BufferTooShort())
+    end
+
     return results[begin:prevind(results, ix)]
 end
 
